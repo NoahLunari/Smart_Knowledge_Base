@@ -1,6 +1,7 @@
 import streamlit as st
 from db_handler import save_ticket, get_all_tickets, add_or_update_guide, get_guide_by_label, get_all_guides, get_all_labels, add_label, remove_label
 from model_handler import classify_ticket
+from test_data import create_test_labels, create_test_guides, create_test_tickets, populate_test_data
 import os, base64
 
 st.set_page_config(page_title="Smart Ticket Scheduler", layout="wide")
@@ -51,6 +52,39 @@ if submitted and description.strip():
 
 # ---------- Guide Management ----------
 st.sidebar.header("📚 Guide Management")
+
+# Add Test Data Section
+st.sidebar.header("🧪 Demo Data")
+test_data_col1, test_data_col2 = st.sidebar.columns(2)
+
+with test_data_col1:
+    if st.button("Create All Test Data"):
+        with st.spinner("Creating test data..."):
+            populate_test_data()
+        st.success("Test data created successfully!")
+
+with test_data_col2:
+    if st.button("Clear All Data"):
+        # TODO: Add clear data functionality
+        st.warning("Clear data functionality not implemented yet")
+
+st.sidebar.markdown("---")
+st.sidebar.subheader("Create Individual Test Data")
+if st.sidebar.button("Create Test Labels"):
+    with st.spinner("Creating test labels..."):
+        create_test_labels()
+    st.sidebar.success("Test labels created!")
+
+if st.sidebar.button("Create Test Guides"):
+    with st.spinner("Creating test guides..."):
+        create_test_guides()
+    st.sidebar.success("Test guides created!")
+
+if st.sidebar.button("Create Test Tickets"):
+    with st.spinner("Creating test tickets..."):
+        create_test_tickets()
+    st.sidebar.success("Test tickets created!")
+
 mode = st.sidebar.radio("Add Guide Type", ["Text", "Markdown Upload", "PDF Upload"])
 label_options = get_all_labels()
 
@@ -97,7 +131,23 @@ if label_options:
 # ---------- View Tickets ----------
 st.subheader("📂 Ticket Archive")
 for ticket in get_all_tickets():
-    st.markdown(f"**{ticket['name']}** @ {ticket['location']} — *{ticket['label']}* | Priority: {ticket['priority']}")
-    st.markdown(f"🖥️ **Device**: {ticket.get('device', 'N/A')}")
-    st.markdown(f"📝 {ticket['description']}")
-    st.markdown("---")
+    with st.expander(f"**{ticket['name']}** @ {ticket['location']} — *{ticket['label']}* | Priority: {ticket['priority']}"):
+        st.markdown(f"🖥️ **Device**: {ticket.get('device', 'N/A')}")
+        st.markdown(f"📝 **Description**: {ticket['description']}")
+        
+        # Display associated guide
+        guide = get_guide_by_label(ticket['label'])
+        if guide:
+            st.markdown("---")
+            st.markdown("### 📘 Associated Guide")
+            st.markdown(f"**{guide.get('title', 'Guide')}**")
+            st.markdown(f"*{guide.get('summary', '')}*")
+            
+            if guide["type"] == "text":
+                st.markdown(guide["content"])
+            elif guide["type"] == "markdown":
+                display_markdown(guide["file_path"])
+            elif guide["type"] == "pdf":
+                display_pdf(guide["file_path"])
+        else:
+            st.info("No guide available for this ticket type.")

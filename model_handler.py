@@ -1,39 +1,26 @@
-from transformers import pipeline
-import streamlit as st
-from db_handler import get_all_labels, get_guide_by_label
+from sentence_transformers import SentenceTransformer
+from sklearn.metrics.pairwise import cosine_similarity
+from db_handler import get_all_labels
+import numpy as np
 
-@st.cache_resource
-def load_classifier():
-    return pipeline("zero-shot-classification", model="facebook/bart-large-mnli")
-
-classifier = load_classifier()
-
-# Default priority settings (can be moved to DB later)
-DEFAULT_PRIORITY = "Medium"
-PRIORITY_MAP = {
-    "login problem": "High",
-    "password reset": "High",
-    "Phone request": "Low",
-    "Laptop request": "Low",
-    "VPN issue": "High",
-    "Email issue": "Low",
-    "Printer issue": "High",
-    "Other": "Medium",
-    "Software request": "Low",
-    "Hardware drop off": "Low"
-}
+model = SentenceTransformer("all-MiniLM-L6-v2")
 
 def classify_ticket(text):
     labels = get_all_labels()
     if not labels:
-        return "unclassified", DEFAULT_PRIORITY, 0.0
+        return "unclassified", "Medium", 0.0
 
-    result = classifier(text, candidate_labels=labels)
-    label = result["labels"][0]
-    confidence = round(result["scores"][0], 2)
+    # Embed the ticket description
+    ticket_vec = model.encode([text])[0]
 
-    # Try getting priority from guide metadata (optional enhancement)
-    guide = get_guide_by_label(label)
-    priority = guide.get("priority", PRIORITY_MAP.get(label, DEFAULT_PRIORITY)) if guide else DEFAULT_PRIORITY
+    # Embed all labels
+    label_vecs = model.encode(labels)
 
-    return label, priority, confidence
+    # Compute cosine similarities
+    sims = cosine_similarity([ticket_vec], label_vecs)[0]
+    top_index = np.argmax(sims)
+
+    best_label = labels[top_index]
+    confidence = float(sims[top_index])  # Convert numpy float to Python float
+
+    return best_label, "Medium", round(confidence, 2)

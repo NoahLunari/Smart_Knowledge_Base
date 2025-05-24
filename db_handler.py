@@ -32,10 +32,14 @@ def get_all_guides():
 
 # ---------- LABELS ----------
 def get_all_labels():
-    return [doc["name"] for doc in label_collection.find()]
+    return list(label_collection.find({}, {"_id": 0}))
 
-def add_label(name):
-    label_collection.update_one({"name": name}, {"$set": {"name": name}}, upsert=True)
+def add_label(name, description=""):
+    label_collection.update_one(
+        {"name": name},
+        {"$set": {"name": name, "description": description}},
+        upsert=True
+    )
 
 def remove_label(name):
     label_collection.delete_one({"name": name})
